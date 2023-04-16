@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Drive Web</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet"
+        crossorigin="anonymous">
+</head>
+
+<body class="bg-dark">
+    <div class="container-md text-center text-white">
+        <h1 class="h1">Clone from a private drive to another drive</h1>
+        <br>
+        <br>
+        <h6 class="h6">Click on USE-SA button to use service accounts. (Limit 750*1000 = 75tb/day)</h6>
+        <h6 class="h6">If you do not click on USE-SA It will use your 750GB/day quota ....</h6>
+        <br>
+        {% if group_email %}
+            <h6 class="h6">Share your private file and location of cloning with this email ( {{ group_email }} ) to use service accounts while cloning</h6>
+            <code>You can remove the email after cloning</code>
+            <br>
+        {% else %}
+            
+        {% endif %}
+        <br>
+
+        <a class="btn btn-info" href="{{ url_for('sainfo') }}" target="_blank" rel="noopener noreferrer"  onclick="window.open(this.href, 'newwindow', 'width=1200,height=800,menubar=no,titlebar=no,scrollbars=no'); return false;" role="button">Click to see more details about USE-SA (RECOMMENDED TO READ)</a>
+
+        <br>
+        <br>
+        <form id="cloneform" role="submit" method="POST" action="{{ url_for('processclone') }}">
+            {{ form.hidden_tag() }}
+
+            <div class="form-group">
+                {{ form.source_file_url.label(class="form-label") }}
+                {{ form.source_file_url(class="form-control" ,
+                placeholder="https://drive.google.com/drive/u/2/folders/1AqhdL04-eIigG6PyCXfS17cnqgK4jvY9") }}
+            </div>
+            <br>
+            <div class="form-group">
+                {{ form.destination_file_url.label(class="form-label") }}
+                {{ form.destination_file_url(class="form-control" ,
+                placeholder="https://drive.google.com/drive/u/2/folders/0AAOGlSKvjXsHUk9PVA") }}
+            </div>
+            <br>
+            <div class="form-group">
+                <div class="form-check form-check-inline">
+                    {{ form.my_checkbox(class="form-check-input", id="my_checkbox_id") }}
+                    <label class="form-check-label" for="my_checkbox_id">{{ form.my_checkbox.label.text }}</label>
+                </div>
+            </div>
+            <br>
+            <button class="btn btn-primary" id="clonebtn" type="submit">Clone</button>
+        </form>
+        <br>
+        <br>
+
+        <div>
+            <code id="cloneidplaceholder"></code>
+            <br>
+            <p id="details">
+                Waiting for progress...
+            </p>
+
+        </div>
+
+        <br>
+        <br>
+        <form id="mainForm" method="POST">
+            <div style="display: flex; justify-content: center;">
+                <br>
+                <div class="progress" style="width: 50vw; margin-top: 10px; margin-right: 1vw; background-color: grey;">
+                    <div class="progress-bar" id="progressBar" role="progressbar" aria-label="Basic example"
+                        aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+            </div>
+        </form>
+        <br>
+        <hr>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"
+        crossorigin="anonymous"></script>
+    <script>
+        const form = document.querySelector('#cloneform');
+        const clone_id_placeholder = document.getElementById('cloneidplaceholder');
+        var clone_id = undefined;
+        let progressBar = document.getElementById("progressBar");
+        document.getElementById('clonebtn').addEventListener('click', function () {
+            event.preventDefault();
+            const formData = new FormData(form);
+            fetch(form.action, {
+                method: form.method,
+                body: formData
+            }).then(response => response.json())  // assuming the server returns JSON data
+                .then(data => {
+                    clone_id = data.clone_id
+                    clone_id_placeholder.innerText = 'Clone ID: ' + data.clone_id
+                })
+                .catch(error => {
+                    // handle any errors here
+                    console.error(error);
+                });
+
+
+            document.getElementById('details').innerHTML = `Starting Clone please wait...
+          <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>`;
+            const intervalId = setInterval(() => {
+                fetch(`/progresscheck?clone_id=${clone_id}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.finaldata) {
+                            const progressHtml = `
+                        <h2>Cloning Complete</h2>
+                        <table class="table table-dark table-striped">
+                            <tr>
+                                <td>
+                                    <strong>Name:</strong>
+                                </td>
+                                <td>
+                                    ${data.name}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <strong>Download URL:</strong>
+                                </td>
+                                <td>
+                                    <a href="${data.down_url}" target="_blank">Google Drive</a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <strong>Total Size:</strong>
+                                </td>
+                                <td>
+                                    ${data.total_size}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <strong>Transferred Files:</strong>
+                                </td>
+                                <td>
+                                    ${data.transferred_files} of ${data.total_files}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <strong>Cloning Speed:</strong>
+                                </td>
+                                <td>
+                                    ${data.speed}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <strong>Elapsed Time:</strong>
+                                </td>
+                                <td>
+                                    ${data.elapsed_time}
+                                </td>
+                            </tr>
+                        </table>
+                    `;
+                            document.getElementById('details').innerHTML = progressHtml;
+                            progressBar.style.width = "100%";
+                            clearInterval(intervalId);
+                        } else if (data.finaldata === false) {
+                            const progressHtml = `
+                        <h2>Clone Progress</h2>
+                        <table class="table table-dark table-striped">
+                            <tr>
+                                <td>
+                                    <strong>Current File Name:</strong>
+                                </td>
+                                <td>
+                                    ${data.current_file_name}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <strong>Current File Size:</strong>
+                                </td>
+                                <td>
+                                    ${data.current_file_size}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <strong>Total Size:</strong>
+                                </td>
+                                <td>
+                                    ${data.total_size}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <strong>Transferred Files:</strong>
+                                </td>
+                                <td>
+                                    ${data.num_of_files_transferred} of ${data.total_files}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <strong>Cloning Speed:</strong>
+                                </td>
+                                <td>
+                                    ${data.speed}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <strong>ETA:</strong>
+                                </td>
+                                <td>
+                                    ${data.eta}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <strong>Service Account:</strong>
+                                </td>
+                                <td>
+                                    ${data.sa_status !== null ? data.sa_status + '.json' : 'Not Using SA'}
+                                </td>
+                            </tr>
+                        </table>
+                    `;
+                            progressBar.style.width = Math.round(data.transferred_b * 100 / data.total_size_b) + "%";
+                            document.getElementById('details').innerHTML = progressHtml;
+                        } else if (Object.keys(data).length === 0) {
+
+                        }
+                        else if (data.wait === true) {
+
+                        }
+                        else {
+                            document.getElementById('details').innerText = JSON.stringify(data);
+                        }
+                    })
+                    .catch(error => console.log(error));
+            }, 4000);
+        });
+    </script>
+</body>
+
+</html>

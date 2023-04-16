@@ -1,0 +1,6 @@
+log.txt
+progress.json
+*__pycache__*
+venv/
+.space
+temp/
