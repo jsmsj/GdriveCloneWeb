@@ -179,5 +179,11 @@ async def progcheck():
 async def sainfo():
     return render_template('user_sainfo.html')
 
+@app.route('/logout')
+async def logout():
+    session.clear()
+    return redirect('/')
+
+
 if __name__ == '__main__':
     app.run(port=5200,debug=True)
